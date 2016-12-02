@@ -1,5 +1,7 @@
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import static java.lang.Math.pow;
 import static java.lang.Math.sqrt;
@@ -8,6 +10,7 @@ public class Main {
 
     private static final String FICHIER = "res/routage_a1.txt";
     private static final String FICHIER_RES = "res/diag.dot";
+
 
     private static ArrayList<Client> clients = new ArrayList<>();
 
@@ -20,71 +23,56 @@ public class Main {
             e.printStackTrace();
         }
 
-        //DEPOT
         Client depot = clients.get(0);
         clients.remove(depot);
-        depot.setLivre(true);
 
-        boolean clientRestant = true;
+        int nbCamionMax = clients.size();
 
-        int nbCamion = 3;
-        Camion[] camions = new Camion[nbCamion];
-        String[] chemins = new String[nbCamion];
-        for (int i = 0; i < nbCamion; i++) {
+        //while temps
+
+        Solution solutionDepart = new Solution();
+        int nbCamion = (int) (Math.random() * (nbCamionMax-1) + 1);
+        System.out.println(nbCamion);
+        int clientParCamion = clients.size() / nbCamion;
+        // pour chaque camions, on prend une partie de la liste des clients
+        for(int i = 1; i <= nbCamion; i ++){
             Camion camionActuel = new Camion(capacite);
-            StringBuilder build = new StringBuilder();
-
-            boolean camionAvecPlace = true;
-            double capaciteActuelle = 0;
-            double temps = 0;
-
-            Client clientActuel = depot;
-            build.append("\t1");
-
-            while (clientRestant && camionAvecPlace) {
-
-                build.append(" -> ");
-
-                Client prochainClient = plusProcheVoisinNonLivre(clientActuel);
-                if (prochainClient != null) {
-                    if (camionActuel.addClient(prochainClient)) {
-                        capaciteActuelle += prochainClient.getQuantite();
-                        temps += getDistance(clientActuel, prochainClient) + prochainClient.getDuree();
-                        clients.remove(prochainClient);
-                        prochainClient.setLivre(true);
-                        clientActuel = prochainClient;
-                        build.append(clientActuel.getId());
-                    } else {
-                        camionAvecPlace = false;
-                    }
-                } else {
-                    clientRestant = false;
-                }
+            List<Client> clientsActuels;
+            if(i == nbCamion){
+                clientsActuels = clients.subList((i-1)*clientParCamion,clients.size()-1);
+            }else{
+                clientsActuels = clients.subList((i-1)*clientParCamion,i*clientParCamion);
             }
-
-            //Retour au dépôt
-            temps += getDistance(clientActuel, depot);
-            build.append("1;\n");
-
-            System.out.println("Coût total : " + temps);
-            System.out.println("Capacité camion : " + capaciteActuelle);
-
-            chemins[i] = build.toString();
-            camions[i] = camionActuel;
+            Collections.shuffle(clientsActuels);
+            // solution depot
+            camionActuel.addClient(depot);
+            for(Client c : clientsActuels){
+                camionActuel.addClient(c);
+            }
+            // arrivee depot
+            camionActuel.addClient(depot);
+            // ajout du camion dans la solution
+            solutionDepart.addCamions(camionActuel);
         }
 
-
-        generateDiag(chemins);
+        generateDiag(solutionDepart);
     }
 
-    private static void generateDiag(String[] chemins) {
+    private static void generateDiag(Solution solution) {
         File logFile = new File(FICHIER_RES);
         try {
             BufferedWriter writer = new BufferedWriter(new FileWriter(logFile));
             writer.write("digraph camion {\n");
-            for (String s : chemins) {
-                if (s.contains(" -> ")) {
-                    writer.write(s);
+            ArrayList<Camion> camions = solution.getCamions();
+            for (Camion camion : camions) {
+                ArrayList<Client> clients = camion.getClientsALivrer();
+                for(int i = 0; i < clients.size(); i ++){
+                    if(i == clients.size() - 1){
+                        writer.write(clients.get(i).getId() + ";\n");
+                    }else{
+                        writer.write(clients.get(i).getId() + " -> ");
+                    }
+
                 }
             }
             writer.write("}");
@@ -92,22 +80,6 @@ public class Main {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private static Client plusProcheVoisinNonLivre(Client clientActuel) {
-        double distMinimale = 999;
-        double distActuelle;
-        Client lePlusProche = null;
-        for (Client c : clients) {
-            if (!c.isLivre()) {
-                distActuelle = getDistance(clientActuel, c);
-                if (distActuelle < distMinimale) {
-                    distMinimale = distActuelle;
-                    lePlusProche = c;
-                }
-            }
-        }
-        return lePlusProche;
     }
 
     private static ArrayList<Client> getClients(String nomFichier) throws IOException {

@@ -1,6 +1,3 @@
-/**
- * Created by Julien on 09/11/2016.
- */
 public class Client {
 
     private int id;
