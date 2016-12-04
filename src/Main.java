@@ -5,22 +5,23 @@ import java.util.List;
 
 public class Main {
 
-    private static final String FICHIER = "res/routage_a1.txt";
     private static final String FICHIER_RES = "res/diag.dot";
     private static final int ITERATION_PER_REBOOT = 100;
-    private static final int ERROR_BEFORE_STOP = 10;
 
     private static ArrayList<Client> clients = new ArrayList<>();
 
-    private static int nbCamionMax;
+    private static int nbCamion;
     private static Client depot;
     private static double capacite;
 
     public static void main(String[] args) {
+
+        String nomFichier = "res/" + args[1];
+
         capacite = 0;
         try {
-            capacite = getCapacite(FICHIER);
-            clients = getClients(FICHIER);
+            capacite = getCapacite(nomFichier);
+            clients = getClients(nomFichier);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -28,7 +29,7 @@ public class Main {
         depot = clients.get(0);
         clients.remove(depot);
 
-        nbCamionMax = clients.size();
+        nbCamion = clients.size();
         long tempsVoulu = System.currentTimeMillis() + (Integer.parseInt(args[0]) * 1000);
         long tempsDebut = System.currentTimeMillis();
 
@@ -36,25 +37,30 @@ public class Main {
 
         while (System.currentTimeMillis() < tempsVoulu) {
             Solution bestCurrent = reboot();
-            System.out.println("Nombre de camions au départ : " + bestCurrent.getCamions().size());
 
             int boucle = 0;
-            int moinsBon = ERROR_BEFORE_STOP;
-            while (boucle < ITERATION_PER_REBOOT && moinsBon != 0) {
+            boolean notSame = true;
+            while (boucle < ITERATION_PER_REBOOT && notSame) {
                 Solution temp = bestSolution(bestCurrent);
                 double tempsTemp = temp.getTemps();
                 double tempsBest = bestCurrent.getTemps();
                 if (tempsTemp < tempsBest) {
                     bestCurrent = new Solution(temp);
                 } else {
-                    //System.out.println("Moins bon");
-                    moinsBon--;
+                    System.out.println("Same (" + boucle + "ème itération)");
+                    notSame = false;
                 }
                 boucle++;
             }
 
-            System.out.println("Score : " + (int) bestCurrent.getTemps() +
+            System.out.print("Score : " + (int) bestCurrent.getTemps() +
                     " avec " + bestCurrent.getCamions().size() + " camions.");
+
+            if (bestCurrent.isValid()) {
+                System.out.println(" Valide");
+            } else {
+                System.out.println(" Non valide");
+            }
 
             System.out.println("Temps d'exécution : " + (System.currentTimeMillis() - tempsDebut) / 1000 + " secondes");
 
@@ -63,8 +69,10 @@ public class Main {
             }
         }
 
-        System.out.println("\nScore final : " + (int) bestOverAll.getTemps() +
+        System.out.print("\nScore final : " + (int) bestOverAll.getTemps() +
                 " avec " + bestOverAll.getCamions().size() + " camions.");
+
+        System.out.println(" Valide ? " + bestOverAll.isValid());
 
         generateDiag(bestOverAll);
     }
@@ -118,7 +126,7 @@ public class Main {
     }
 
     private static Solution bestCut(Solution actuelle) {
-        if (actuelle.getCamions().size() == nbCamionMax) {
+        if (actuelle.getCamions().size() == nbCamion) {
             return null;
         }
         Solution best = new Solution(actuelle);
@@ -150,8 +158,14 @@ public class Main {
                     save.addCamions(c2);
                     double tempsSave = save.getTemps();
                     double tempsBest = best.getTemps();
-                    if (tempsSave < tempsBest) {
-                        best = new Solution(save);
+                    if (best.isValid()) {
+                        if (save.isValid() && (tempsSave < tempsBest)) {
+                            best = new Solution(save);
+                        }
+                    } else {
+                        if (save.isValid()) {
+                            best = new Solution(save);
+                        }
                     }
                     save = new Solution(actuelle);
                 }
@@ -193,8 +207,14 @@ public class Main {
 
                     double tempsSave = save.getTemps();
                     double tempsBest = best.getTemps();
-                    if (tempsSave < tempsBest) {
-                        best = new Solution(save);
+                    if (best.isValid()) {
+                        if (save.isValid() && (tempsSave < tempsBest)) {
+                            best = new Solution(save);
+                        }
+                    } else {
+                        if (save.isValid()) {
+                            best = new Solution(save);
+                        }
                     }
                     save = new Solution(actuelle);
                 }
@@ -227,8 +247,14 @@ public class Main {
                         save.addCamions(k, swap);
                         double tempsSave = save.getTemps();
                         double tempsBest = best.getTemps();
-                        if (tempsSave < tempsBest) {
-                            best = new Solution(save);
+                        if (best.isValid()) {
+                            if (save.isValid() && (tempsSave < tempsBest)) {
+                                best = new Solution(save);
+                            }
+                        } else {
+                            if (save.isValid()) {
+                                best = new Solution(save);
+                            }
                         }
                         save = new Solution(actuelle);
                     }
@@ -241,7 +267,6 @@ public class Main {
     private static Solution reboot() {
         Solution solutionDepart = new Solution();
         Collections.shuffle(clients);
-        int nbCamion = (int) (Math.random() * (nbCamionMax - 1) + 1);
         int clientParCamion = clients.size() / nbCamion;
         for (int i = 1; i <= nbCamion; i++) {
             Camion camionActuel = new Camion(capacite);

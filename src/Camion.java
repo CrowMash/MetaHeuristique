@@ -1,8 +1,5 @@
 import java.util.ArrayList;
 
-import static java.lang.Math.pow;
-import static java.lang.Math.sqrt;
-
 public class Camion {
 
     private double capacite;
@@ -19,10 +16,6 @@ public class Camion {
         clientsALivrer.addAll(clone.getClientsALivrer());
     }
 
-    private static double getDistance(Client c1, Client c2) {
-        return sqrt(pow((c1.getX() - c2.getX()), 2) + pow((c1.getY() - c2.getY()), 2));
-    }
-
     public double getCapacite() {
         return capacite;
     }
@@ -36,15 +29,17 @@ public class Camion {
     }
 
     public double getTemps() {
-        double total = 0;
-        for (int i = 1; i < clientsALivrer.size() - 1; i++) {
-            Client c1 = clientsALivrer.get(i);
-            Client c2 = clientsALivrer.get(i + 1);
-            total += c1.getDuree() + getDistance(c1, c2);
+        double pastTime = 0;
+        for (int i = 1; i < clientsALivrer.size(); i++) {
+            Client prev = clientsALivrer.get(i - 1);
+            Client next = clientsALivrer.get(i);
+            if ((pastTime + Utils.getDistance(prev, next)) < next.getTMin()) {
+                pastTime = next.getTMin() + next.getDuree();
+            } else {
+                pastTime += Utils.getDistance(prev, next) + next.getDuree();
+            }
         }
-        Client terminux = clientsALivrer.get(clientsALivrer.size() - 1);
-        total += terminux.getDuree();
-        return total;
+        return pastTime;
     }
 
     public double getPoids() {
